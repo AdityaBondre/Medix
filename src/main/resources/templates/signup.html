@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Signup</title>
+</head>
+<body>
+
+<h2>Signup</h2>
+
+<form id="signupForm">
+    <label>Name: <input type="text" id="name" required></label><br>
+    <label>Email: <input type="email" id="email" required></label><br>
+    <label>Password: <input type="password" id="password" required></label><br>
+    <label>Gender:
+        <select id="gender" required>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+        </select>
+    </label><br>
+    <label>Role:
+        <select id="role" required>
+            <option value="PATIENT">Patient</option>
+            <option value="DOCTOR">Doctor</option>
+            <option value="ADMIN">Admin</option>
+        </select>
+    </label><br>
+
+    <button type="submit">Sign Up</button>
+</form>
+
+<script>
+    document.getElementById("signupForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        const user = {
+            name: document.getElementById("name").value,
+            email: document.getElementById("email").value,
+            password: document.getElementById("password").value,
+            gender: document.getElementById("gender").value,
+            role: document.getElementById("role").value
+        };
+
+        fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(user)
+        })
+        .then(response => response.text())  // Expect plain text response
+        .then(message => {
+            alert(message);
+            if (message === "User registered successfully.") {
+                window.location.href = '/api/auth/login';
+            }
+        })
+        .catch(error => alert('Signup failed. Please try again.'));
+    });
+</script>
+
+</body>
+</html>

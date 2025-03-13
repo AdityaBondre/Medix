@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+</head>
+<body>
+
+<h2>Login</h2>
+
+<form id="loginForm">
+    <label>Email: <input type="email" id="email" required></label><br>
+    <label>Password: <input type="password" id="password" required></label><br>
+    <button type="submit">Login</button>
+</form>
+
+<script>
+    document.getElementById("loginForm").addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const credentials = { email, password };
+
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(credentials)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Login failed");
+        }
+
+        const token = data.token;
+        const role = data.role;
+        const updatedAt = data.updatedAt;
+
+        if (token && role) {
+            localStorage.setItem("token", token);
+            localStorage.setItem("role", role);
+
+            alert("Login successful");
+
+            // Redirect based on role and updatedAt field
+            if (role === "ROLE_ADMIN") {
+                window.location.href = "/api/auth/admin/dashboard";
+            } else if (role === "ROLE_DOCTOR") {
+                window.location.href = updatedAt === "null" ? "/api/auth/doctor/profile-update" : "/api/auth/doctor/dashboard";
+            } else if (role === "ROLE_PATIENT") {
+                window.location.href = updatedAt === "null" ? "/api/auth/patient/profile-update" : "/api/auth/patient/dashboard";
+            } else {
+                throw new Error("Invalid role received from server");
+            }
+        } else {
+            throw new Error("Token or role not found in response");
+        }
+    } catch (error) {
+        console.error("Login error:", error);
+        alert(error.message);
+    }
+});
+
+
+</script>
+
+</body>
+</html>

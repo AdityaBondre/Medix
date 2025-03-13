@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Patient Dashboard</title>
+    <script>
+
+        //const BASE_URL = "http://localhost:8080";
+
+     document.addEventListener("DOMContentLoaded", function () {
+         fetchDoctors(); // Fetch all doctors on page load
+
+         // Attach event listener to search form
+         document.getElementById("searchForm").addEventListener("submit", function (event) {
+             event.preventDefault(); // Prevent default form submission
+             fetchDoctors();
+         });
+     });
+
+     function fetchDoctors() {
+         const token = localStorage.getItem("token");
+
+         // Get search parameters from form inputs
+         const name = document.getElementById("name").value.trim();
+         const gender = document.getElementById("gender").value;
+         const specialization = document.getElementById("specialization").value.trim();
+         const hospitalName = document.getElementById("hospitalName").value.trim();
+
+         // Construct query parameters
+         const params = new URLSearchParams();
+         if (name) params.append("name", name);
+         if (gender) params.append("gender", gender);
+         if (specialization) params.append("specialization", specialization);
+         if (hospitalName) params.append("hospitalName", hospitalName);
+
+         fetch(`/api/patients/search?${params.toString()}`, {
+             method: "GET",
+             headers: {
+                 "Authorization": `Bearer ${token}`,
+                 "Content-Type": "application/json"
+             }
+         })
+         .then(response => response.json())
+         .then(data => {
+             const tableBody = document.getElementById("doctorTableBody");
+             tableBody.innerHTML = ""; // Clear previous results
+
+             if (data.length === 0) {
+                 tableBody.innerHTML = `<tr><td colspan="6">No doctors found</td></tr>`;
+                 return;
+             }
+
+             data.forEach(doctor => {
+                 const row = `
+                     <tr>
+                         <td>${doctor.id}</td>
+                         <td>${doctor.name}</td>
+                         <td>${doctor.specialization}</td>
+                         <td>${doctor.hospitalName}</td>
+                         <td>${doctor.gender}</td>
+                         <td>
+                             <button onclick="openAppointmentPopup(${doctor.id})">Book Appointment</button>
+                         </td>
+                     </tr>
+                 `;
+                 tableBody.innerHTML += row;
+             });
+         })
+         .catch(error => console.error("Error fetching doctors:", error));
+     }
+
+
+
+    function openAppointmentPopup(doctorId) {
+            document.getElementById("appointmentPopup").style.display = "block";
+            document.getElementById("doctorId").value = doctorId;
+        }
+
+        function closeAppointmentPopup() {
+            document.getElementById("appointmentPopup").style.display = "none";
+        }
+
+        function bookAppointment() {
+            const token = localStorage.getItem("token");
+            const doctorId = document.getElementById("doctorId").value;
+            const appointmentDate = document.getElementById("appointmentDate").value;
+            const appointmentType = document.getElementById("appointmentType").value;
+
+            const requestBody = {
+                doctorId: doctorId,
+                appointmentDate: appointmentDate,
+                appointmentType: appointmentType
+            };
+
+            fetch("/api/patients/request", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(requestBody)
+            })
+            .then(response => response.text())
+            .then(data => {
+                alert("Appointment booked successfully!");
+                closeAppointmentPopup();
+            })
+            .catch(error => console.error("Error booking appointment:", error));
+        }
+
+        function openAppointmentsPopup() {
+    const token = localStorage.getItem("token");
+
+    fetch("/api/patients/patient", {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("Failed to fetch appointments.");
+        }
+        return response.json();
+    })
+    .then(data => {
+        const tableBody = document.getElementById("appointmentTableBody");
+        tableBody.innerHTML = "";
+
+        data.forEach(appointment => {
+            let joinButton = "";
+            if (appointment.appointmentType === "VIRTUAL" && appointment.status === "APPROVED") {
+                joinButton = `<button onclick="joinVideoCall(${appointment.id})">Join Call</button>`;
+            } else {
+                joinButton = "N/A";
+            }
+
+            const row = `
+                <tr>
+                    <td>${appointment.id}</td>
+                    <td>${appointment.doctorsName}</td>
+                    <td>${appointment.appointmentDate}</td>
+                    <td>${appointment.appointmentTime || "N/A"}</td>
+                    <td>${appointment.appointmentType}</td>
+                    <td>${appointment.status}</td>
+                    <td>${joinButton}</td>
+                </tr>
+            `;
+            tableBody.innerHTML += row;
+        });
+
+        document.getElementById("appointmentsPopup").style.display = "block";
+    })
+    .catch(error => {
+        console.error("Error fetching appointments:", error);
+        alert("Could not fetch appointments. Please try again.");
+    });
+}
+
+function joinVideoCall(appointmentId) {
+    const token = localStorage.getItem("token");
+
+    fetch(`/api/patients/appointments/${appointmentId}/video-call`, {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("Failed to fetch video call URL.");
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.videoCallUrl) {
+            // Show the video call container and set the iframe source
+            document.getElementById("videoCallFrame").src = data.videoCallUrl;
+            document.getElementById("videoCallContainer").style.display = "block";
+        } else {
+            alert("Video call link is not available.");
+        }
+    })
+    .catch(error => {
+        console.error("Error fetching video call URL:", error);
+        alert("Could not join the video call. Please try again.");
+    });
+}
+
+function closeVideoCall() {
+    document.getElementById("videoCallContainer").style.display = "none";
+    document.getElementById("videoCallFrame").src = "";
+}
+
+
+
+        function closeAppointmentsPopup() {
+            document.getElementById("appointmentsPopup").style.display = "none";
+        }
+
+
+
+
+
+
+        function openMedicalHistoryModal() {
+    document.getElementById("medicalHistoryModal").style.display = "flex";
+    fetchMedicalHistory();
+}
+
+function closeMedicalHistoryModal() {
+    document.getElementById("medicalHistoryModal").style.display = "none";
+}
+
+function fetchMedicalHistory() {
+    fetch('/api/patients/medical-history', {
+        method: 'GET',
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('token'),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        populateMedicalHistoryTable(data);
+    })
+    .catch(error => {
+        console.error('Error fetching medical history:', error);
+    });
+}
+
+function populateMedicalHistoryTable(data) {
+    const tableBody = document.getElementById('medicalHistoryTableBody');
+    tableBody.innerHTML = '';
+
+    data.forEach(history => {
+        const row = `<tr>
+            <td>${history.patient?.id || 'N/A'}</td>
+            <td>${history.doctor?.id || 'N/A'}</td>
+            <td>${history.doctor?.name || 'Unknown'}</td>
+            <td>${history.appointment?.id || 'N/A'}</td>
+            <td>${history.appointment?.appointmentDate || 'N/A'}</td>
+            <td>${history.summary || 'No Summary'}</td>
+        </tr>`;
+        tableBody.innerHTML += row;
+    });
+}
+
+    </script>
+    <style>
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid black; padding: 8px; text-align: left; }
+        .popup { display: none; position: fixed; top: 20%; left: 30%; background: white; padding: 20px; box-shadow: 0px 0px 10px gray; }
+    </style>
+</head>
+<body>
+<h1>Welcome, Patient!</h1>
+
+<!-- Button to Open the Modal -->
+<button onclick="openMedicalHistoryModal()">View Medical History</button>
+
+<!-- Medical History Modal (Basic HTML & CSS) -->
+<div id="medicalHistoryModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Medical History</h3>
+            <button onclick="closeMedicalHistoryModal()">X</button>
+        </div>
+        <div class="modal-body">
+            <table border="1" width="100%">
+                <thead>
+                <tr>
+                    <th>Patient ID</th>
+                    <th>Doctor ID</th>
+                    <th>Doctor Name</th>
+                    <th>Appointment ID</th>
+                    <th>Appointment Date</th>
+                    <th>Summary</th>
+                </tr>
+                </thead>
+                <tbody id="medicalHistoryTableBody">
+                <!-- Data will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button onclick="closeMedicalHistoryModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Search Form -->
+<form id="searchForm">
+    <label for="name">Name:</label>
+    <input type="text" id="name" name="name">
+
+    <label for="gender">Gender:</label>
+    <select id="gender" name="gender">
+        <option value="">Any</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+    </select>
+
+    <label for="specialization">Specialization:</label>
+    <input type="text" id="specialization" name="specialization">
+
+    <label for="hospitalName">Hospital Name:</label>
+    <input type="text" id="hospitalName" name="hospitalName">
+
+    <button type="submit">Search</button>
+</form>
+
+<!-- Results Table -->
+<h2>Doctors List</h2>
+<table border="1">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Specialization</th>
+        <th>Hospital Name</th>
+        <th>Gender</th>
+    </tr>
+    </thead>
+    <tbody id="doctorTableBody">
+    <!-- Doctors data will be inserted here -->
+    </tbody>
+</table>
+
+<h2>My Appointments</h2>
+<button onclick="openAppointmentsPopup()">View Appointments</button>
+
+
+<!-- Book Appointment Popup -->
+<div id="appointmentPopup" class="popup">
+    <h3>Book Appointment</h3>
+    <label>Doctor ID:</label>
+    <input type="text" id="doctorId" readonly><br><br>
+    <label>Appointment Date:</label>
+    <input type="date" id="appointmentDate"><br><br>
+    <label>Type:</label>
+    <select id="appointmentType">
+        <option value="PHYSICAL">Physical</option>
+        <option value="VIRTUAL">Virtual</option>
+    </select><br><br>
+    <button onclick="bookAppointment()">Submit</button>
+    <button onclick="closeAppointmentPopup()">Close</button>
+</div>
+
+<!-- View Appointments Popup -->
+<div id="appointmentsPopup" class="popup">
+    <h3>My Appointments</h3>
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Doctor Name</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Action</th> <!-- New column for "Join Call" button -->
+        </tr>
+        </thead>
+        <tbody id="appointmentTableBody"></tbody>
+    </table>
+    <button onclick="closeAppointmentsPopup()">Close</button>
+</div>
+
+<!-- Video Call Container -->
+<div id="videoCallContainer" style="display: none; position: fixed; top: 10%; left: 20%; width: 60%; height: 70%; background: white; border: 1px solid black; padding: 10px;">
+    <button onclick="closeVideoCall()" style="float: right;">X</button>
+    <iframe id="videoCallFrame" width="100%" height="90%" allow="camera; microphone"></iframe>
+</div>
+
+</body>
+</html>

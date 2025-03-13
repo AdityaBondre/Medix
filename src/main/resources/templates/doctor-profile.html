@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+</head>
+<body>
+<h2>Profile Details</h2>
+<form id="profileForm">
+    <label>Name:</label>
+    <input type="text" id="name" disabled>
+    <br>
+
+    <label>Email:</label>
+    <input type="email" id="email" disabled>
+    <br>
+
+    <label>Gender:</label>
+    <input type="text" id="gender" disabled>
+    <br>
+
+    <label>Date of Birth:</label>
+    <input type="date" id="dateOfBirth" disabled>
+    <br>
+
+    <label>Specialization:</label>
+    <input type="text" id="specialization" disabled>
+    <br>
+
+    <label>License Number:</label>
+    <input type="text" id="licenseNumber" disabled>
+    <br>
+
+    <label>Hospital Name:</label>
+    <input type="text" id="hospitalName" disabled>
+    <br>
+
+    <label>Status:</label>
+    <input type="text" id="status" disabled>
+    <br>
+
+    <button type="button" id="editBtn" onclick="enableEdit()">Edit</button>
+    <button type="button" id="saveBtn" onclick="updateProfile()" style="display: none;">Save</button>
+    <button type="button" onclick="goToDashboard()">Home</button>
+</form>
+
+<script>
+    const token = localStorage.getItem('token');
+    let userId = null; // Store user ID globally
+
+    // Fetch user profile from backend
+    async function fetchProfile() {
+        try {
+            const response = await fetch('/api/auth/profile/details', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                userId = data.id; // Store user ID for later updates
+
+                // Populate form fields
+                document.getElementById('name').value = data.name;
+                document.getElementById('email').value = data.email;
+                document.getElementById('gender').value = data.gender || '';
+                document.getElementById('dateOfBirth').value = data.dateOfBirth || '';
+                document.getElementById('specialization').value = data.specialization || '';
+                document.getElementById('licenseNumber').value = data.licenseNumber || '';
+                document.getElementById('hospitalName').value = data.hospitalName || '';
+                document.getElementById('status').value = data.status || '';
+            } else {
+                alert('Failed to fetch profile');
+            }
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+            alert('An error occurred while fetching the profile');
+        }
+    }
+
+    // Enable editing for allowed fields
+    function enableEdit() {
+        document.getElementById('gender').disabled = false;
+        document.getElementById('dateOfBirth').disabled = false;
+        document.getElementById('specialization').disabled = false;
+        document.getElementById('licenseNumber').disabled = false;
+        document.getElementById('hospitalName').disabled = false;
+
+        // Keep restricted fields disabled
+        document.getElementById('name').disabled = true;
+        document.getElementById('email').disabled = true;
+        document.getElementById('status').disabled = true;
+
+        document.getElementById('editBtn').style.display = 'none';
+        document.getElementById('saveBtn').style.display = 'inline';
+    }
+
+    // Update user profile
+    async function updateProfile() {
+        if (!userId) {
+            alert('User ID not found. Please refresh and try again.');
+            return;
+        }
+
+        const profileData = {
+            id: userId,
+            gender: document.getElementById('gender').value,
+            dateOfBirth: document.getElementById('dateOfBirth').value,
+            specialization: document.getElementById('specialization').value,
+            licenseNumber: document.getElementById('licenseNumber').value,
+            hospitalName: document.getElementById('hospitalName').value
+        };
+
+        try {
+            const response = await fetch(`/api/auth/profile/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(profileData)
+            });
+
+            if (response.ok) {
+                alert('Profile updated successfully');
+
+                // Disable fields after saving
+                document.getElementById('gender').disabled = true;
+                document.getElementById('dateOfBirth').disabled = true;
+                document.getElementById('specialization').disabled = true;
+                document.getElementById('licenseNumber').disabled = true;
+                document.getElementById('hospitalName').disabled = true;
+
+                document.getElementById('editBtn').style.display = 'inline';
+                document.getElementById('saveBtn').style.display = 'none';
+            } else {
+                alert('Failed to update profile');
+            }
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            alert('An error occurred while updating the profile');
+        }
+    }
+
+    // Navigate to dashboard
+    function goToDashboard() {
+        window.location.href = '/api/auth/doctor/dashboard';
+    }
+
+    // Load profile on page load
+    window.onload = fetchProfile;
+</script>
+</body>
+</html>
