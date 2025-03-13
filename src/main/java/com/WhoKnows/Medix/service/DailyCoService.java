@@ -1,4 +1,5 @@
 package com.WhoKnows.Medix.service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -6,8 +7,11 @@ import org.json.JSONObject;
 
 @Service
 public class DailyCoService {
-    private static final String DAILY_CO_API_URL = "https://api.daily.co/v1/rooms";
-    private static final String API_KEY = "ec6b13956f59a319b80208d35c18dc1a50473dbfd4144884be9f01f5d8cf3707"; // Replace with your API Key
+    @Value("${daily.co.api.url}")
+    private  String DAILY_CO_API_URL ;
+
+    @Value("${api.key}")
+    private  String API_KEY; // Replace with your API Key
 
     public String createMeeting(String doctorId, String patientId) {
         try {
