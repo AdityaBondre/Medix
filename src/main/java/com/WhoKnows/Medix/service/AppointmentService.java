@@ -130,11 +130,6 @@ public class AppointmentService {
         }
     }
 
-
-
-
-
-
     // 3. Patient cancels an appointment
     @Transactional
     public ResponseEntity<String> cancelAppointmentByPatient(Long appointmentId, String patientEmail) {
@@ -151,8 +146,8 @@ public class AppointmentService {
             }
 
             appointment.setStatus(Appointment.STATUS_CANCELLED);
-            emailService.sendAppointmentCancellationEmail(appointment.getDoctor().getEmail(),
-                    appointment.getDoctor().getName(),appointment.getPatient().getName(),appointment.getAppointmentDate());
+            emailService.sendAppointmentCancellationEmailToPatient(appointment.getPatient().getEmail(),
+                    appointment.getDoctor().getName(),appointment.getPatient().getName(),appointment.getAppointmentDate(),appointment.getAppointmentTime());
             appointmentRepository.save(appointment);
 
             return ResponseEntity.ok("Appointment cancelled successfully.");
@@ -166,6 +161,36 @@ public class AppointmentService {
     // 4. Doctor cancels an appointment
     @Transactional
     public ResponseEntity<String> cancelAppointmentByDoctor(Long appointmentId, String doctorEmail) {
+        try {
+            Appointment appointment = appointmentRepository.findById(appointmentId)
+                    .orElseThrow(() -> new IllegalArgumentException("Appointment not found"));
+
+            if (!appointment.getDoctor().getEmail().equals(doctorEmail)) {
+                throw new IllegalArgumentException("You are not authorized to cancel this appointment.");
+            }
+
+            if (appointment.getStatus().equals(Appointment.STATUS_CANCELLED)) {
+                throw new IllegalArgumentException("Appointment is already cancelled.");
+            }
+
+            appointment.setStatus(Appointment.STATUS_CANCELLED);
+            emailService.sendAppointmentCancellationEmailByDoctor(appointment.getPatient().getEmail(),
+                    appointment.getPatient().getName(),appointment.getDoctor().getName(),
+                    appointment.getAppointmentDate(),appointment.getAppointmentTime());
+
+            appointmentRepository.save(appointment);
+
+            return ResponseEntity.ok("Appointment cancelled successfully.");
+
+        } catch (IllegalArgumentException e) {
+            // Return exception message in the response
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // 5. reject Appointment By doctor
+    @Transactional
+    public ResponseEntity<String> rejectAppointmentByDoctor(Long appointmentId, String doctorEmail) {
         try {
             Appointment appointment = appointmentRepository.findById(appointmentId)
                     .orElseThrow(() -> new IllegalArgumentException("Appointment not found"));
@@ -194,7 +219,7 @@ public class AppointmentService {
     }
 
 
-    // 5. Doctor reschedules an appointment
+    // 6. Doctor reschedules an appointment
     @Transactional
     public ResponseEntity<String> rescheduleAppointment(Long appointmentId, RescheduleAppointmentDTO rescheduleDTO, String doctorEmail) {
         try {
@@ -253,7 +278,7 @@ public class AppointmentService {
 
 
 
-    // 6. View all appointments for a doctor
+    // 7. View all appointments for a doctor
     public List<AppointmentDTO> getAppointmentsForDoctorList(String doctorEmail, String status, LocalDate appointmentDate) {
         Doctor doctor = doctorRepository.findByEmail(doctorEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Doctor not found"));
@@ -272,7 +297,7 @@ public class AppointmentService {
     }
 
 
-    // 7. View all appointments for a patient
+    // 8. View all appointments for a patient
     public List<AppointmentDTO> getAppointmentsForPatient(String patientEmail) {
         Patient patient = patientRepository.findByEmail(patientEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Patient not found"));

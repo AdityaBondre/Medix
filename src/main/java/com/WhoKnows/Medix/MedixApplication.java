@@ -10,4 +10,9 @@ public class MedixApplication {
 		SpringApplication.run(MedixApplication.class, args);
 	}
 
+	//admin@example.com
+	//		adminPassword123
+
+
+
 }

@@ -180,7 +180,7 @@ public class DoctorController {
     @PutMapping("/{id}/reject")
     public ResponseEntity<String> rejectAppointment(@PathVariable Long id, Authentication authentication) {
         String doctorEmail = authentication.getName(); // Authenticated doctor's email
-        appointmentService.cancelAppointmentByDoctor(id, doctorEmail);
+        appointmentService.rejectAppointmentByDoctor(id, doctorEmail);
         return ResponseEntity.ok("Appointment rejected successfully.");
     }
 

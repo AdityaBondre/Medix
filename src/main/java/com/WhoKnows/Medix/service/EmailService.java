@@ -3,12 +3,17 @@ package com.WhoKnows.Medix.service;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 @Service
 public class EmailService {
@@ -213,6 +218,22 @@ public class EmailService {
             helper.setTo(to);
             helper.setSubject("✅ Appointment Confirmed - Dr. " + doctorName);
 
+            // Convert LocalDate and LocalTime to proper DateTime format for Google Calendar
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HHmm");
+
+            String startDateTime = appointmentDate.format(dateFormatter) + "T" + appointmentTime.format(timeFormatter) + "00";
+            String endDateTime = appointmentDate.format(dateFormatter) + "T" + appointmentTime.plusMinutes(30).format(timeFormatter) + "00"; // 30-minute duration
+
+            // Google Calendar Event Link
+            String calendarUrl = "https://www.google.com/calendar/render?action=TEMPLATE"
+                    + "&text=Appointment+with+Dr.+"
+                    + URLEncoder.encode(doctorName, StandardCharsets.UTF_8)
+                    + "&dates=" + startDateTime + "/" + endDateTime
+                    + "&details=" + URLEncoder.encode("Appointment confirmed with Dr. " + doctorName, StandardCharsets.UTF_8)
+                    + "&location=Online"
+                    + "&sf=true&output=xml";
+
             String emailContent = "<html><body>"
                     + "<div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto;'>"
                     + "<h2 style='color: #2E86C1; text-align: center;'>Appointment Confirmed</h2>"
@@ -227,6 +248,8 @@ public class EmailService {
                     + "<p>📌 Please make sure to be available at the scheduled time.</p>"
                     + "<p>If you have any questions, feel free to contact our support team.</p>"
                     + "<br>"
+                    + "<a href='" + calendarUrl + "' style='display: inline-block; padding: 10px 20px; color: #fff; background-color: #28a745; text-decoration: none; border-radius: 5px;'>➕ Add to Google Calendar</a>"
+                    + "<br><br>"
                     + "<p>Best regards,</p>"
                     + "<p><b>The Medix Team</b></p>"
                     + "<hr style='border: 0; height: 1px; background: #ddd;'>"
@@ -240,6 +263,7 @@ public class EmailService {
             e.printStackTrace();
         }
     }
+
 
     // mail for reject appointment by doctor
     public void sendAppointmentRejectionEmail(String to, String patientName, String doctorName, LocalDate appointmentDate) {
@@ -283,27 +307,33 @@ public class EmailService {
         }
     }
 
-
-    // mail for cancel appointment by patient
-    public void sendAppointmentCancellationEmail(String to, String doctorName, String patientName,LocalDate appointmentDate) {
+    // mail for canceled appointment by doctor
+    public void sendAppointmentCancellationEmailByDoctor(String to, String patientName, String doctorName, LocalDate appointmentDate, LocalTime appointmentTime) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
 
             helper.setTo(to);
-            helper.setSubject("⚠️ Appointment Canceled by Patient - " + patientName);
+            helper.setSubject("🚫 Appointment Cancelled - Dr. " + doctorName);
+
+            // Format Google Calendar search query for easy manual removal
+            String calendarSearchUrl = "https://calendar.google.com/calendar/u/0/r/search?q="
+                    + URLEncoder.encode("Appointment with Dr. " + doctorName, StandardCharsets.UTF_8);
 
             String emailContent = "<html><body>"
                     + "<div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto;'>"
-                    + "<h2 style='color: #C0392B; text-align: center;'>Appointment Canceled</h2>"
-                    + "<p>Dear Dr. " + doctorName + ",</p>"
-                    + "<p>We would like to inform you that the appointment with <b>patient " + patientName + "</b> scheduled for <b>" + appointmentDate + "</b> has been <b>canceled</b> by the patient.</p>"
-                    + "<p>📌 <b>Appointment Details:</b></p>"
+                    + "<h2 style='color: #C0392B; text-align: center;'>Your Appointment Has Been Cancelled</h2>"
+                    + "<p>Dear " + patientName + ",</p>"
+                    + "<p>We would like to inform you that your appointment with <b>Dr. " + doctorName + "</b> on <b>" + appointmentDate + " at " + appointmentTime + "</b> has been <b>cancelled</b>.</p>"
+                    + "<p>📌 <b>What You Can Do:</b></p>"
                     + "<ul>"
-                    + "<li><b>Patient Name:</b> " + patientName + "</li>"
-                    + "<li><b>Appointment Date:</b> " + appointmentDate + "</li>"
+                    + "<li>If you need to reschedule, please book a new appointment.</li>"
+                    + "<li>If this was a mistake, please contact our support team immediately.</li>"
                     + "</ul>"
-                    + "<p>If you have any concerns or need assistance, please contact our support team.</p>"
+                    + "<p>🚨 If you have already added this appointment to Google Calendar, please remove it:</p>"
+                    + "<a href='" + calendarSearchUrl + "' style='display: inline-block; padding: 10px 20px; color: #fff; background-color: #d9534f; text-decoration: none; border-radius: 5px;'>🗑 Remove from Google Calendar</a>"
+                    + "<br><br>"
+                    + "<p>We apologize for any inconvenience and appreciate your understanding.</p>"
                     + "<br>"
                     + "<p>Best regards,</p>"
                     + "<p><b>The Medix Team</b></p>"
@@ -319,14 +349,87 @@ public class EmailService {
         }
     }
 
+
+
+    // mail for cancel appointment by patient
+    public void sendAppointmentCancellationEmailToPatient(String to, String doctorName, String patientName, LocalDate appointmentDate, LocalTime appointmentTime) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+
+            helper.setTo(to);
+            helper.setSubject("✅ Appointment Successfully Canceled - Dr. " + doctorName);
+
+            // Format date and time for Google Calendar search
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HHmm");
+
+            String appointmentDateTime = appointmentDate.format(dateFormatter) + "T" + appointmentTime.format(timeFormatter) + "00Z";
+
+            // Google Calendar search link to help the patient find and remove the event manually
+            String calendarSearchUrl = "https://www.google.com/calendar/u/0/r/search?q="
+                    + URLEncoder.encode("Appointment with Dr. " + doctorName, StandardCharsets.UTF_8);
+
+            String emailContent = "<html><body>"
+                    + "<div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto;'>"
+                    + "<h2 style='color: #C0392B; text-align: center;'>Your Appointment Has Been Canceled</h2>"
+                    + "<p>Dear " + patientName + ",</p>"
+                    + "<p>Your appointment with <b>Dr. " + doctorName + "</b> scheduled for <b>" + appointmentDate + " at " + appointmentTime + "</b> has been <b>successfully canceled</b>.</p>"
+                    + "<p>📌 <b>Appointment Details:</b></p>"
+                    + "<ul>"
+                    + "<li><b>Doctor Name:</b> Dr. " + doctorName + "</li>"
+                    + "<li><b>Appointment Date:</b> " + appointmentDate + "</li>"
+                    + "<li><b>Appointment Time:</b> " + appointmentTime + "</li>"
+                    + "</ul>"
+                    + "<p>If you have added this appointment to your Google Calendar, you can remove it using the link below:</p>"
+                    + "<a href='" + calendarSearchUrl + "' style='display: inline-block; padding: 10px 20px; color: #fff; background-color: #dc3545; text-decoration: none; border-radius: 5px;'>🗑 Remove from Google Calendar</a>"
+                    + "<br><br>"
+                    + "<p>If you wish to reschedule, you can book a new appointment through our system.</p>"
+                    + "<br>"
+                    + "<p>Best regards,</p>"
+                    + "<p><b>The Medix Team</b></p>"
+                    + "<hr style='border: 0; height: 1px; background: #ddd;'>"
+                    + "<p style='font-size: 12px; color: gray; text-align: center;'>This is an automated email, please do not reply.</p>"
+                    + "</div>"
+                    + "</body></html>";
+
+            helper.setText(emailContent, true);
+            mailSender.send(message);
+        } catch (MessagingException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     // mail for reschedule the appointment by doctor
-    public void sendAppointmentRescheduledEmail(String to, String patientName, String doctorName, LocalDate oldAppointmentDate, LocalDate newAppointmentDate,LocalTime oldAppointmentTime, LocalTime newAppointmentTime) {
+    public void sendAppointmentRescheduledEmail(String to, String patientName, String doctorName,
+                                                LocalDate oldAppointmentDate, LocalDate newAppointmentDate,
+                                                LocalTime oldAppointmentTime, LocalTime newAppointmentTime) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
 
             helper.setTo(to);
             helper.setSubject("🔄 Appointment Rescheduled - Dr. " + doctorName);
+
+            // Format date and time for Google Calendar
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HHmm");
+
+            String newStartDateTime = newAppointmentDate.format(dateFormatter) + "T" + newAppointmentTime.format(timeFormatter) + "00Z";
+            String newEndDateTime = newAppointmentDate.format(dateFormatter) + "T" + newAppointmentTime.plusMinutes(30).format(timeFormatter) + "00Z"; // 30-minute duration
+
+            // URL to manually search and delete old appointment
+            String oldCalendarSearchUrl = "https://calendar.google.com/calendar/u/0/r/search?q="
+                    + URLEncoder.encode("Appointment with Dr. " + doctorName, StandardCharsets.UTF_8);
+
+            // URL to add new rescheduled appointment
+            String newCalendarUrl = "https://www.google.com/calendar/render?action=TEMPLATE"
+                    + "&text=Rescheduled+Appointment+with+Dr.+" + URLEncoder.encode(doctorName, StandardCharsets.UTF_8)
+                    + "&dates=" + newStartDateTime + "/" + newEndDateTime
+                    + "&details=" + URLEncoder.encode("Your appointment has been rescheduled with Dr. " + doctorName, StandardCharsets.UTF_8)
+                    + "&location=Online"
+                    + "&sf=true&output=xml";
 
             String emailContent = "<html><body>"
                     + "<div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto;'>"
@@ -340,6 +443,13 @@ public class EmailService {
                     + "<li><b>Previous Time:</b> " + oldAppointmentTime + "</li>"
                     + "<li><b>New Time:</b> " + newAppointmentTime + "</li>"
                     + "</ul>"
+                    + "<p>🚨 Please remove your previous appointment from Google Calendar before adding the new one:</p>"
+                    + "<br>"
+                    + "<a href='" + oldCalendarSearchUrl + "' style='display: inline-block; padding: 10px 20px; color: #fff; background-color: #d9534f; text-decoration: none; border-radius: 5px;'>🗑 Remove Old Appointment</a>"
+                    + "<br><br>"
+                    + "<p>✅ Once removed, you can add the updated appointment:</p>"
+                    + "<a href='" + newCalendarUrl + "' style='display: inline-block; padding: 10px 20px; color: #fff; background-color: #28a745; text-decoration: none; border-radius: 5px;'>📅 Add New Appointment</a>"
+                    + "<br><br>"
                     + "<p>We apologize for any inconvenience and appreciate your understanding.</p>"
                     + "<p>📞 If you have any questions or need further assistance, please contact our support team.</p>"
                     + "<br>"
@@ -356,6 +466,8 @@ public class EmailService {
             e.printStackTrace();
         }
     }
+
+
 
     // mail for doctor by management to update profile
     public void sendProfileUpdateEmail(String to, String name) {

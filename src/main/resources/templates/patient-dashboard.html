@@ -108,7 +108,7 @@
             .catch(error => console.error("Error booking appointment:", error));
         }
 
-        function openAppointmentsPopup() {
+       function openAppointmentsPopup() {
     const token = localStorage.getItem("token");
 
     fetch("/api/patients/patient", {
@@ -136,6 +136,14 @@
                 joinButton = "N/A";
             }
 
+            // Add Cancel Request button for appointments that can be canceled
+            let cancelButton = "";
+            if (appointment.status === "PENDING" || appointment.status === "APPROVED") {
+                cancelButton = `<button onclick="cancelAppointment(${appointment.id})">Cancel Request</button>`;
+            } else {
+                cancelButton = "N/A";
+            }
+
             const row = `
                 <tr>
                     <td>${appointment.id}</td>
@@ -145,6 +153,7 @@
                     <td>${appointment.appointmentType}</td>
                     <td>${appointment.status}</td>
                     <td>${joinButton}</td>
+                    <td>${cancelButton}</td>
                 </tr>
             `;
             tableBody.innerHTML += row;
@@ -158,6 +167,34 @@
     });
 }
 
+// Function to cancel an appointment
+function cancelAppointment(appointmentId) {
+    const token = localStorage.getItem("token");
+
+    if (confirm("Are you sure you want to cancel this appointment?")) {
+        fetch(`/api/patients/${appointmentId}/cancel-by-patient`, {
+            method: "DELETE",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Failed to cancel appointment.");
+            }
+            return response.text(); // Use response.text() for plain text responses
+        })
+        .then(data => {
+            alert("Appointment canceled successfully!");
+            openAppointmentsPopup(); // Refresh the appointments list
+        })
+        .catch(error => {
+            console.error("Error canceling appointment:", error);
+            alert("Could not cancel appointment. Please try again.");
+        });
+    }
+}
 function joinVideoCall(appointmentId) {
     const token = localStorage.getItem("token");
 
@@ -352,6 +389,7 @@ function populateMedicalHistoryTable(data) {
 </div>
 
 <!-- View Appointments Popup -->
+<!-- View Appointments Popup -->
 <div id="appointmentsPopup" class="popup">
     <h3>My Appointments</h3>
     <table>
@@ -363,7 +401,8 @@ function populateMedicalHistoryTable(data) {
             <th>Time</th>
             <th>Type</th>
             <th>Status</th>
-            <th>Action</th> <!-- New column for "Join Call" button -->
+            <th>Join Call</th> <!-- Column for Join Call button -->
+            <th>Cancel Request</th> <!-- New column for Cancel Request button -->
         </tr>
         </thead>
         <tbody id="appointmentTableBody"></tbody>
